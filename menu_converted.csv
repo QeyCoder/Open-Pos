@@ -1,0 +1,385 @@
+Item Name,Price,Tax Rate
+"Vegitable Khichdi",169,5
+"Khichdi",149,5
+"Pani Puri Packing",54,5
+"Strawberry Shake",129,5
+"Fresh Lime Soda",79,5
+"Fresh Lime Water",69,5
+"Kaddhi Pakoda Rice Bowl",199,5
+"Water",18,0
+"Veg Fried Momos",149,5
+"Moong  Dal Vegitable Kichdi ",149,5
+"Allo Pyaz Paratha",119,5
+"Veg Manchurian Sizzler",249,5
+"Chilly Panner Sizzler",269,5
+"Tawa Butter Roti",18,5
+"Tawa Roti",15,5
+"Coke 250",20,0
+"Kadhi Pakora",239,5
+"Paneer Kungpao_",299,5
+"Dragon Chilli Paneer_",229,5
+"Triple Fried Rice_",209,5
+"Chilly Paneer_",239,5
+"Veg Salt & Pepper_",229,5
+"Veg Manchurian_",219,5
+"Schezwan Fried Rice_",199,5
+"Crispy Chilly Baby Corn_",199,5
+"Crispy Corn_",189,5
+"Spring Roll_",169,5
+"Veg Fried Rice_",169,5
+"Chinese Bhel_",139,5
+"Veg Momos_",129,5
+"Chilly Mushroom_",249,5
+"Schezwan Noodles_",169,5
+"Veg Hakka Noodles_",159,5
+"Veg Noodles_",159,5
+"Singapoori Noodles_",169,5
+"Chilly Garlic Noodles_",159,5
+"Honey Chilli Potato_",179,5
+"Chilly Potato_",159,5
+"Paneer Momos_",149,5
+"French Fries_",99,5
+"Malai Broccoli_",399,5
+"Dahi Kebab_",299,5
+"Dahi Ke Sholey_",289,5
+"Veg Seekh Kebab_",289,5
+"Malai Soya Chap_",289,5
+"Achari Soya Chap_",269,5
+"Harayali Soya Chaap_",269,5
+"Malai Paneer Tikka_",349,5
+"Tandoori Paneer Tikka_",329,5
+"Achari Paneer Tikka_",329,5
+"Haryali Paneer Tikka_",329,5
+"Afghani Momos_",209,5
+"Tandoori Momos_",189,5
+"Veg Thupka_",169,5
+"Tomato Soup_",169,5
+"Sweet Corn Soup_",159,5
+"Hot & Sour Soup_",159,5
+"Lemon Coriander Soup_",159,5
+"Veg Clear Soup_",159,5
+"Manchow Soup_",159,5
+"Mix Veg Raita_",149,5
+"Pineapple Raita_",149,5
+"Boondi Raita_",129,5
+"Chole Bhature_",139,5
+"Pav Bhaji_",149,5
+"Red Sauce Pasta_",199,5
+"White Sauce Pasta_",229,5
+"Dahi Bhalla_",129,5
+"Sandwiches_",99,5
+"Burgers_",119,5
+"Plain Naan_",89,5
+"Garlic Naan_",109,5
+"Butter Naan_",99,5
+"Stuffed Naan_",119,5
+"Kashmiri Naan_",119,5
+"Laccha Parantha_",69,5
+"Tandoori Buttter Roti_",25,5
+"Tandoori Roti_",20,5
+"Kashmiri Pulao_",259,5
+"Plain Rice_",149,5
+"Veg Biryani_",239,5
+"Jeera Rice_",159,5
+"Veg Pulao_",199,5
+"Kadhai Paneer_",419,5
+"Paneer Lababdar_",399,5
+"Paneer Tikka Butter Masala_",419,5
+"Paneer Butter Masala_",409,5
+"Paneer Do Pyaza_",399,5
+"Lachha Paneer_",389,5
+"Handi Paneer_",379,5
+"Palak Paneer_",369,5
+"Paneer Noor Rani_",389,5
+"Matar Paneer_",379,5
+"Shahi Paneer_",379,5
+"Palak Corn_",359,5
+"Paneer Bhurji_",349,5
+"Chaap Butter Masala_",379,5
+"Veg Jalfrezi_",359,5
+"Veg Kohlapuri_",359,5
+"Sarso Da Saag_",359,5
+"Kadhai Mushroom_",359,5
+"Mushroom Masala_",349,5
+"Malai Kofta_",349,5
+"Amritsari Chole_",349,5
+"Soya Chaap Masala_",349,5
+"Nargese Kofta_",329,5
+"Veg Kofta_",329,5
+"Tawa Chaap_",329,5
+"Dal Makhani_",329,5
+"Mix Vegetable_",299,5
+"Masala Aloo Gobhi_",249,5
+"Dal Handi_",249,5
+"Dal Tadka_",239,5
+"Aloo Jeera_",229,5
+"Sting",20,5
+"Coca Cola Medium",0,5
+"Mushroom Sandwich + Fries",199,5
+"Paneer Tikka Sandwich + Fries",189,5
+"Grilled Cheese Sandwich + Fries",169,5
+"Pani Puri",49,5
+"Dahi Bhalla",129,5
+"Butter Naan (1pc) + Butter Roti(1pc) + Dal Makhani",289,5
+"Peri Peri Fries",159,5
+"White Sauce Pasta + Garlic Bread",239,5
+"Red Sauce Pasta + Garlic Bread",219,5
+"Gulab Jamun",89,5
+"Cold Coffee",169,5
+"Veg Manchurian (Gravy)",269,5
+"Veg Manchurian (Dry)",259,5
+"Triple Fried Rice",229,5
+"Chilly Garlic Fried Rice",209,5
+"Schezwan Fried Rice",199,5
+"Paneer 65",279,5
+"Chilli Paneer (Gravy)",289,5
+"Chilli Paneer (Dry)",279,5
+"Kurkure Paneer Momos",219,5
+"Kurkure Veg Momos",199,5
+"Chilly Mushroom (Gravy)",249,5
+"Mushroom Sandwich + Fries - D",179,5
+"Paneer Tikka Sandwich + Fries - D",189,5
+"Grilled Cheese Sandwich + Fries - D",149,5
+"Dahi Gol Gappa - D",99,5
+"Pani Puri - D",49,5
+"Dahi Bhalla - D",109,5
+"Peri Peri Fries - D",119,5
+"White Sauce Pasta + Garlic Bread - D",229,5
+"Red Sauce Pasta + Garlic Bread - D",179,5
+"Gulab Jamun - D",49,5
+"Hot Coffee - D",99,5
+"Veg Manchurian (GRAVY) - D",229,5
+"Veg Manchurian (DRY) - D",219,5
+"Triple Fried Rice - D",189,5
+"Chilly Garlic Fried Rice - D",169,5
+"Schezwan Fried Rice - D",159,5
+"Paneer 65 - D",239,5
+"Kurkure Paneer Momos - D",179,5
+"Kurkure Veg Momos - D",159,5
+"Chilly Mushroom (Gravy)  - D",249,5
+"Dal Tadka - D",239,5
+"Dal Makhani - D",299,5
+"Dal Handi - D",249,5
+"Tawa Chaap - D",329,5
+"Soya Chaap Masala - D",339,5
+"Chaap Butter Masala - D",379,5
+"Amritsari Chole - D",349,5
+"Paneer Tikka Butter Masala - D",399,5
+"Handi Paneer - D",369,5
+"Lacha Paneer - D",359,5
+"Veg Kohlapuri (Chef Special) - D",359,5
+"Paneer Adraki - D",369,5
+"Paneer Noor -Rani - D",389,5
+"Palak Corn - D",359,5
+"Mix Vegetable - D",299,5
+"Malai Kofta - D",349,5
+"Veg Kofta - D",329,5
+"Nargese Kofta - D",329,5
+"Aloo Jeera - D",229,5
+"Masala Aloo Gobhi - D",329,5
+"Sarso Da Saag (Seasonal) - D",369,5
+"Mushroom Masala - D",349,5
+"Kadhai Mushroom - D",349,5
+"Paneer Do Pyaza - D",379,5
+"Paneer Butter Masala - D",409,5
+"Paneer Lababdar - D",379,5
+"Paneer Bhurji - D",399,5
+"Kadhai Paneer - D",379,5
+"Shahi Paneer - D",409,5
+"Matar Paneer - D",399,5
+"Palak Paneer - D",409,5
+"Paneer Lehsuni - D",369,5
+"Paneer Methi Malai - D",409,5
+"Harayali Paneer Tikka  - D",349,5
+"Malai Paneer Tikka - D",349,5
+"Achari Paneer Tikka  - D",349,5
+"Tandoori Paneer Tikka - D",349,5
+"Harayali Soya Chaap - D",329,5
+"Malai Soya Chap  - D",329,5
+"Achari Soya Chap  - D",329,5
+"Malai Broccoli  - D",399,5
+"Veg Seekh Kebab - D",289,5
+"Dahi Ke Sholey  - D",289,5
+"Dahi Kebab  - D",299,5
+"Spring Roll - D",169,5
+"Paneer Momos - D",149,5
+"Veg Momos  - D",129,5
+"Chillly Potato - D",159,5
+"Honey Chilly Potato - D",209,5
+"Dragon Chilly Paneer - D",285,5
+"Paneer Kungpao - D",329,5
+"Pan Fried Noodles - D",199,5
+"Singapori Noodles - D",169,5
+"Schezwan Noodles - D",191,5
+"Chilly Garlic Noodles - D",159,5
+"Veg Noodles - D",159,5
+"Chilly Mushroom (Dry)  - D",249,5
+"Veg Fried Rice - D",189,5
+"Crispy Corn - D",189,5
+"Veg Salt & Pepper - D",229,5
+"Veg Hakka Noodles - D",159,5
+"Tomato Soup - D",169,5
+"Manchow Soup - D",159,5
+"Veg Clear Soup - D",159,5
+"Veg Thupka Soup - D",169,5
+"Lemon Coriander Soup - D",159,5
+"Hot & Sour Soup - D",159,5
+"Sweet Corn Soup - D",159,5
+"Tandoori Butter Roti - D",20,5
+"Laccha Parantha - D",89,5
+"Stuffeed Naan - D",149,5
+"Butter Naan - D",99,5
+"Garlic Naan - D",129,5
+"Plain Naan - D",79,5
+"Veg Pulao - D",199,5
+"Jeera Rice - D",159,5
+"Veg Biryani - D",309,5
+"Plain Rice - D",149,5
+"Kashmiri Pulao - D",329,5
+"Boondi  Raita - D",129,5
+"Pineapple Raita - D",149,5
+"Mix Veg Raita - D",139,5
+"Tandoori Momos - D",189,5
+"Afghani Momos - D",189,5
+"Pav Bhaji - D",159,5
+"Chole Bhature - D",139,5
+"Dahi Bhalla (Our Spl.) - D",129,5
+"Noodles - D",0,5
+"MILK - D",0,5
+"Elaichi chai - D",55,5
+"Masala chai - D",75,5
+"Cold Coffee - D",129,5
+"Tandoori Roti - D",18,5
+"French Fries - D",99,5
+"Ice Cream - D",40,5
+"cheesy Fries - D",159,5
+"soft drink - D",20,5
+"Green Salad - D",149,5
+"Cesar Salad - D",249,5
+"Russian Salad - D",199,5
+"Chilli Paneer(DRY) - D",239,5
+"Chilly Paneer(Gravy) - D",249,5
+"Gajar Halwa - D",60,5
+"White Sauce Pasta - D",229,5
+"Red Sauce Pasta - D",219,5
+"Bharwa Gol Gappa - D",109,5
+"Papdi Chat - D",89,5
+"Jeera Rice + Dal Makhani",289,5
+"Butter Naan (1pc) + Butter Roti (1pc) + Amritsari Chole",289,5
+"Lacha Paratha (2pcs) + Amritsari Chole",289,5
+"Butter Naan (1pc) + Butter Roti (1pc) + Chaap Masala",289,5
+"Lacha Paratha (2pcs) + Chana Masala",289,5
+"Butter Naan (1pc) + Butter Roti (1pc) + Paneer Lababdar",289,5
+"Lacha Paratha (2pcs) + Paneer Lababdar",289,5
+"Jeera Rice + Dal Tadka",199,5
+"Noodles + Chilli Paneer (Gravy)",249,5
+"Noodles + Manchurian (Gravy)",249,5
+"Fried Rice + Chilli Paneer (Gravy)",249,5
+"Fried Rice + Manchurian (Gravy)",249,5
+"Papdi Chat",89,5
+"Bharwa Gol Gappa",109,5
+"Red Sauce Pasta",219,5
+"White Sauce Pasta",199,5
+"Gajar Halwa",60,5
+"Chilli Paneer(Gravy)",259,5
+"Chilli Paneer(DRY)",239,5
+"Russian Salad",199,5
+"Cesar Salad",249,5
+"Green Salad",149,5
+"Coca Cola",20,40
+"cheesy Fries",159,5
+"Ice Cream",40,5
+"French Fries",99,5
+"Tandoori Roti",18,5
+"Hot Coffee",139,5
+"Masala chai",75,5
+"Elaichi chai",65,5
+"MILK",0,5
+"Noodles",0,5
+"Dahi Bhalla (Our Spl.)",129,5
+"Chole Bhature",139,5
+"Pav Bhaji",199,5
+"Afghani Momos",229,5
+"Tandoori Momos",189,5
+"Mix Veg Raita",139,5
+"Pineapple Raita",149,5
+"Boondi  Raita",129,5
+"Kashmiri Pulao",329,5
+"Plain Rice",149,5
+"Veg Biryani",309,5
+"Jeera Rice",159,5
+"Veg Pulao",199,5
+"Plain Naan",79,5
+"Garlic Naan",129,5
+"Butter Naan",99,5
+"Stuffeed Naan",149,5
+"Laccha Parantha",89,5
+"Tandoori Butter Roti",20,5
+"Sweet Corn Soup",200,5
+"Hot & Sour Soup",200,5
+"Lemon Coriander Soup",200,5
+"Veg Thupka Soup",200,5
+"Veg Clear Soup",200,5
+"Manchow Soup",200,5
+"Tomato Soup",200,5
+"Veg Hakka Noodles",159,5
+"Veg Salt & Pepper",229,5
+"Crispy Corn",189,5
+"Veg Fried Rice",189,5
+"Chilly Mushroom (Dry)",249,5
+"Veg Noodles",199,5
+"Chilly Garlic Noodles",159,5
+"Schezwan Noodles",239,5
+"Singapori Noodles",219,5
+"Pan Fried Noodles",199,5
+"Paneer Kungpao",329,5
+"Dragon Chilly Paneer",285,5
+"Honey Chilly Potato",259,5
+"Chillly Potato",159,5
+"Veg Momos",129,5
+"Paneer Momos",149,5
+"Spring Roll",169,5
+"Dahi Kebab",299,5
+"Dahi Ke Sholey",289,5
+"Veg Seekh Kebab",289,5
+"Malai Broccoli",399,5
+"Achari Soya Chap",329,5
+"Malai Soya Chap",399,5
+"Harayali Soya Chaap",329,5
+"Tandoori Paneer Tikka",349,5
+"Achari Paneer Tikka",349,5
+"Malai Paneer Tikka",349,5
+"Harayali Paneer Tikka",349,5
+"Paneer Methi Malai",409,5
+"Paneer Lehsuni",389,5
+"Palak Paneer",409,5
+"Matar Paneer",399,5
+"Shahi Paneer",409,5
+"Kadhai Paneer",399,5
+"Paneer Bhurji",399,5
+"Paneer Lababdar",399,5
+"Paneer Butter Masala",409,5
+"Paneer Do Pyaza",399,5
+"Kadhai Mushroom",349,5
+"Mushroom Masala",349,5
+"Sarso Da Saag (Seasonal)",369,5
+"Masala Aloo Gobhi",329,5
+"Aloo Jeera",229,5
+"Nargese Kofta",329,5
+"Veg Kofta",329,5
+"Malai Kofta",349,5
+"Mix Vegetable",299,5
+"Palak Corn",359,5
+"Paneer Noor -Rani",389,5
+"Paneer Adraki",389,5
+"Veg Kohlapuri (Chef Special)",359,5
+"Lacha Paneer",399,5
+"Handi Paneer",389,5
+"Paneer Tikka Butter Masala",409,5
+"Amritsari Chole",349,5
+"Chaap Butter Masala",379,5
+"Soya Chaap Masala",359,5
+"Tawa Chaap",349,5
+"Dal Handi",249,5
+"Dal Makhani",329,5
+"Dal Tadka",259,5

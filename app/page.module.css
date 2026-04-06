@@ -1,0 +1,285 @@
+.appContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.controlsSection {
+  width: 100%;
+  height: 100%;
+}
+
+.receiptSection {
+  flex: 1;
+  background: var(--surface);
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.title {
+  color: var(--primary);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 2rem;
+}
+
+.subtitle {
+  color: #7f8c8d;
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.formRow {
+  display: flex;
+  gap: 1rem;
+}
+
+.formRow .formGroup {
+  flex: 1;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(211, 84, 0, 0.1);
+}
+
+.btnPrimary {
+  width: 100%;
+  padding: 1rem;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btnPrimary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btnSecondary {
+  flex: 1;
+  padding: 0.75rem;
+  background-color: #34495e;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btnSecondary:hover {
+  background-color: #2c3e50;
+}
+
+.btnDanger {
+  background-color: #e74c3c;
+}
+.btnDanger:hover {
+  background-color: #c0392b;
+}
+
+.printButtons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Thermal Paper Styling */
+.thermalPreview {
+  width: 80mm;
+  margin: 0 auto;
+  background: white;
+  padding: 5mm;
+  border: 1px dashed #ccc;
+  min-height: 200px;
+  color: #000;
+  position: relative;
+}
+
+.thermalPreview, .thermalPreview * {
+  font-family: var(--printer-font, 'Inter', sans-serif) !important;
+}
+
+.receiptHeader {
+  text-align: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px dashed #000;
+  padding-bottom: 1rem;
+}
+
+.receiptHeader h2 {
+  font-size: var(--printer-bold-size, 1.4rem);
+  margin: 0;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.receiptHeader p {
+  font-size: 0.8rem;
+  margin: 0.2rem 0;
+}
+
+.itemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.itemsTable th {
+  text-align: left;
+  border-bottom: 1px dashed #000;
+  padding: 0.25rem 0;
+}
+
+.itemsTable td {
+  padding: 0.15rem 0;
+  vertical-align: top;
+}
+
+.textRight { text-align: right !important; }
+.textCenter { text-align: center !important; }
+
+.receiptTotals {
+  border-top: 1px dashed #000;
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.totalsRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+}
+
+.grandTotal {
+  font-weight: bold;
+  font-size: 1.1rem;
+  border-top: 1px dashed #000;
+  padding-top: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.receiptFooter {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  border-top: 1px dashed #000;
+  padding-top: 0.5rem;
+}
+
+.actionCell {
+  color: red;
+  cursor: pointer;
+  text-align: right;
+  font-family: sans-serif !important;
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding-left: 0.5rem;
+}
+.actionCell:hover {
+  color: darkred;
+}
+
+/* Custom Modal & Toast */
+.modalOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.modalContent {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #34495e;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  z-index: 2000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { bottom: 0; opacity: 0; } to { bottom: 2rem; opacity: 1; } }
+
+/* Mobile Responsiveness */
+@media (max-width: 900px) {
+  .appContainer {
+    flex-direction: column;
+    padding: 1rem;
+    gap: 1rem;
+  }
+  .controlsSection, .receiptSection {
+    padding: 1rem;
+  }
+  .formRow {
+    flex-direction: column;
+    gap: 0;
+  }
+  .printButtons {
+    flex-direction: column;
+  }
+  .btnSecondary {
+    width: 100%;
+  }
+}

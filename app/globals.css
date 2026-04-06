@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&family=Inter:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;600&family=Quicksand:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono&display=swap');
+
+:root {
+  /* Wise Design System: High-Trust, Bold, Fresh */
+  --bg: #ffffff;
+  --bg-subtle: #f2f5f7;
+  --surface: #ffffff;
+  --surface-elevated: #e8ebe6;
+  
+  --primary: #0050e6;       /* Deep High-Focus Blue */
+  --primary-text: #ffffff;  /* Pure White for absolute contrast */
+  --primary-accent: #166534; /* Deep Forest Green for Settle */
+  --primary-hover: #003db3;
+  
+  --text-primary: #000000;  /* Absolute Black */
+  --text-secondary: #454745;
+  --text-muted: #868685;
+  --text-subtle: #868685;
+  
+  --border: rgba(14, 15, 12, 0.12);
+  --border-strong: #0e0f0c;
+  
+  --shadow-ring: rgba(14, 15, 12, 0.12) 0px 0px 0px 1px;
+  
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 30px;
+  --radius-xl: 40px;
+  --radius-pill: 9999px;
+  
+  --spacing-base: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body, html {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  /* Wise Typography: Confident Inter */
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-feature-settings: "calt";
+  font-weight: 600; /* Wise default weight */
+  letter-spacing: -0.011em;
+  line-height: 1.44;
+}
+
+input, button, select, textarea {
+  font-family: inherit;
+  font-feature-settings: inherit;
+  outline: none;
+}
+
+/* Base Print Styles */
+@media print {
+  body, html {
+    background: white !important;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+  }
+  body * { visibility: hidden; }
+  .print-active, .print-active * { visibility: visible; }
+  .print-active { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 5mm; border: none; box-shadow: none; }
+  @page { margin: 0; }
+}
+
+/* Wise Card Styling */
+.menu-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-ring) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.menu-card:hover {
+  transform: scale(1.05) !important;
+  border-color: var(--primary) !important;
+  box-shadow: rgba(14, 15, 12, 0.15) 0px 10px 30px -10px !important;
+  z-index: 10;
+}
+
+.menu-card:active {
+  transform: scale(0.95) !important;
+}
+
+/* Wise Precise Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-elevated);
+  border-radius: 10px;
+}
+
+/* Interactive Elements */
+button {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button:hover {
+  transform: scale(1.05);
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+.btn-pill {
+  border-radius: var(--radius-pill);
+  padding: 12px 24px;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-text);
+  border: none;
+}
+
+.btn-secondary {
+  background: rgba(22, 51, 0, 0.08);
+  color: var(--text-primary);
+  border: none;
+}

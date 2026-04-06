@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: moms_pos_db
+    environment:
+      POSTGRES_USER: moms_admin
+      POSTGRES_PASSWORD: secure_pos_password
+      POSTGRES_DB: moms_pos
+    ports:
+      - "5433:5432"
+    volumes:
+      - pos_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pos-app:
+    build: .
+    container_name: moms_pos_app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://moms_admin:secure_pos_password@postgres:5432/moms_pos?schema=public
+      - MASTER_PIN=1234
+    volumes:
+      - .:/app
+    command: sh -c "npx prisma db push && npm run dev"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  pos_data:

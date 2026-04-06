@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model StoreConfig {
+  id           Int      @id @default(1)
+  name         String   @default("Mom's Fresh Pot")
+  address      String   @default("Shop No 40, Global City Center, Sohna")
+  phone        String   @default("+91 9220763205")
+  gstin        String?
+  logoUrl      String?
+  primaryColor String?  @default("#d35400")
+  fontFamily   String?  @default("Outfit")
+  upiIds       String?  // Comma-separated or JSON string for SQLite
+  defaultUpiId    String?  // Default selection for QR
+  printerType     String?  @default("EPSON") // EPSON, STAR
+  printerInterface String? @default("tcp://192.168.1.100") // tcp://host, /dev/usb/lp0, etc.
+  printerApiKey    String? // Shared secret for Tailscale print server
+  tableCount       Int      @default(10)
+  printerFont      String?  @default("Inter")
+  printerBoldSize  Int?     @default(24)
+  updatedAt       DateTime @updatedAt
+}
+
+model MenuItem {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  category       String   @default("General")
+  priceDineIn    Float    @default(0)
+  priceDelivery  Float    @default(0)
+  priceCorporate Float    @default(0)
+  taxRate        Float    @default(0) 
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  billId     String      @unique
+  orderNo    Int         
+  tableNo    String?     
+  status     String      @default("PAID")
+  subtotal   Float       // Sum of raw prices
+  taxTotal   Float       // Sum of all dynamically calculated taxes
+  grandTotal     Float
+  paymentType    String      @default("CASH") // CASH, UPI, PARTIAL
+  cashPaid       Float       @default(0)
+  upiPaid        Float       @default(0)
+  changeReturned Float       @default(0)
+  customerName   String?
+  customerPhone  String?
+  upiUsed        String?     // Specific UPI ID used for this order
+  items          OrderItem[]
+  createdAt      DateTime    @default(now())
+}
+
+model OrderItem {
+  id       Int    @id @default(autoincrement())
+  orderId  Int
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuName String
+  price    Float
+  qty      Int
+  taxRate  Float  @default(5.0) // Captured at moment of sale in case menu tax changes
+}
