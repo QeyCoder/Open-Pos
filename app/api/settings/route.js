@@ -14,7 +14,20 @@ export async function GET() {
                     tableCount: 10,
                     printerFont: "Inter",
                     printerBoldSize: 24,
-                    upiIds: ""
+                    upiIds: "",
+                    // Defaults for new fields
+                    onboarded: false,
+                    themeId: "wise",
+                    deliveryEnabled: true,
+                    pickupEnabled: true,
+                    corporateEnabled: false,
+                    partyEnabled: false,
+                    packagingCharge: 0,
+                    deliveryCharge: 0,
+                    minDeliveryAmount: 0,
+                    freeDeliveryAbove: 0,
+                    maxDeliveryDistance: 0,
+                    uiTextSize: "medium"
                 }
             });
         }
@@ -49,7 +62,22 @@ export async function POST(request) {
             printerInterface: body.printerInterface || "",
             printerApiKey: body.printerApiKey || "",
             printerFont: body.printerFont || "Inter",
-            printerBoldSize: parseInt(body.printerBoldSize) || 24
+            printerBoldSize: parseInt(body.printerBoldSize) || 24,
+            
+            // New Fields
+            onboarded: body.onboarded ?? true,
+            themeId: body.themeId || "wise",
+            deliveryEnabled: body.deliveryEnabled ?? true,
+            pickupEnabled: body.pickupEnabled ?? true,
+            corporateEnabled: body.corporateEnabled ?? false,
+            partyEnabled: body.partyEnabled ?? false,
+            packagingCharge: parseFloat(body.packagingCharge) || 0,
+            deliveryCharge: parseFloat(body.deliveryCharge) || 0,
+            minDeliveryAmount: parseFloat(body.minDeliveryAmount) || 0,
+            freeDeliveryAbove: parseFloat(body.freeDeliveryAbove) || 0,
+            maxDeliveryDistance: parseFloat(body.maxDeliveryDistance) || 0,
+            tailscaleIp: body.tailscaleIp || "",
+            uiTextSize: body.uiTextSize || "medium"
         };
 
         const config = await prisma.storeConfig.upsert({

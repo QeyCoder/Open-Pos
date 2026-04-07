@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model StoreConfig {
@@ -24,6 +24,22 @@ model StoreConfig {
   tableCount       Int      @default(10)
   printerFont      String?  @default("Inter")
   printerBoldSize  Int?     @default(24)
+  
+  // New Onboarding & Advanced Settings
+  onboarded        Boolean  @default(false)
+  themeId          String   @default("wise")
+  deliveryEnabled  Boolean  @default(true)
+  pickupEnabled    Boolean  @default(true)
+  corporateEnabled Boolean  @default(false)
+  partyEnabled     Boolean  @default(false)
+  packagingCharge  Float    @default(0)
+  deliveryCharge   Float    @default(0)
+  minDeliveryAmount Float   @default(0)
+  freeDeliveryAbove Float?  @default(0)
+  maxDeliveryDistance Float? @default(0)
+  tailscaleIp      String?
+  uiTextSize       String   @default("medium")
+
   updatedAt       DateTime @updatedAt
 }
 
@@ -55,6 +71,8 @@ model Order {
   customerName   String?
   customerPhone  String?
   upiUsed        String?     // Specific UPI ID used for this order
+  packagingCharge Float    @default(0)
+  deliveryAddress String?
   items          OrderItem[]
   createdAt      DateTime    @default(now())
 }

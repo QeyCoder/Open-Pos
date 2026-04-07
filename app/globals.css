@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&family=Inter:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;600&family=Quicksand:wght@500;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;600;900&family=Inter:wght@400;600;700;800;900&display=swap');
 
 :root {
   /* Wise Design System: High-Trust, Bold, Fresh */
@@ -20,6 +19,17 @@
   
   --border: rgba(14, 15, 12, 0.12);
   --border-strong: #0e0f0c;
+
+  /* Semantic Danger / Error tokens */
+  --error: #d03238;
+  --error-bg: rgba(208, 50, 56, 0.06);
+  --error-border: rgba(208, 50, 56, 0.2);
+
+  /* Modal / overlay backdrop */
+  --bg-overlay: rgba(0, 0, 0, 0.35);
+
+  /* Pill-track tint (tab bar background) */
+  --pill-track: rgba(0, 0, 0, 0.05);
   
   --shadow-ring: rgba(14, 15, 12, 0.12) 0px 0px 0px 1px;
   
@@ -30,6 +40,10 @@
   --radius-pill: 9999px;
   
   --spacing-base: 8px;
+  
+  /* Dynamic Interface Scaling & Typography */
+  --font-scale: 1;
+  --font-main: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
 }
 
 * {
@@ -44,18 +58,23 @@ body, html {
   background-color: var(--bg);
   color: var(--text-primary);
   min-height: 100vh;
-  /* Wise Typography: Confident Inter */
-  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  /* Soothing Professional Typography */
+  font-family: var(--font-main);
   font-feature-settings: "calt";
   font-weight: 600; /* Wise default weight */
   letter-spacing: -0.011em;
   line-height: 1.44;
+  font-size: calc(16px * var(--font-scale));
 }
 
 input, button, select, textarea {
   font-family: inherit;
   font-feature-settings: inherit;
   outline: none;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, div {
+  font-family: var(--font-main);
 }
 
 /* Base Print Styles */
@@ -113,6 +132,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  border-radius: var(--radius-pill); /* Global Pill Buttons */
 }
 
 button:hover {

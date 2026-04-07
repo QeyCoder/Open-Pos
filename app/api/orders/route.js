@@ -5,13 +5,27 @@ export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const dateFilter = searchParams.get('date');
+        const startDate = searchParams.get('startDate');
+        const endDate = searchParams.get('endDate');
         
         let query = {
             orderBy: { createdAt: 'desc' },
             include: { items: true }
         };
 
-        if (dateFilter) {
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            
+            query.where = {
+                createdAt: {
+                    gte: start,
+                    lte: end
+                }
+            };
+        } else if (dateFilter) {
             const startOfDay = new Date(dateFilter);
             startOfDay.setHours(0, 0, 0, 0);
             const endOfDay = new Date(dateFilter);
@@ -55,8 +69,10 @@ export async function POST(request) {
                 cashPaid: parseFloat(body.cashPaid || 0),
                 upiPaid: parseFloat(body.upiPaid || 0),
                 changeReturned: parseFloat(body.changeReturned || 0),
+                packagingCharge: parseFloat(body.packagingCharge || 0),
                 customerName: body.customerName || null,
                 customerPhone: body.customerPhone || null,
+                deliveryAddress: body.deliveryAddress || null,
                 upiUsed: body.upiUsed || null,
                 items: {
                     create: items.map(item => ({
