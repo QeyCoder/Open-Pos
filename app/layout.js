@@ -1,3 +1,4 @@
+import './globals.css';
 
 export const metadata = {
   title: "Mom's Fresh Pot POS",
@@ -7,7 +8,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, system-ui, sans-serif" }}>
+        {children}
+      </body>
     </html>
   );
 }

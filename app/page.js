@@ -431,6 +431,7 @@ function POSContent() {
     // Checkout Sheet — null = closed, object = open with snapshot
     const [checkoutSheet, setCheckoutSheet] = useState(null);
     const [onboardingStep, setOnboardingStep] = useState(1);
+    const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
     // POS Cart & Table States
     const defaultTables = { 'Takeaway': [], 'Table 1': [], 'Table 2': [], 'Table 3': [], 'Table 4': [] };
@@ -438,8 +439,8 @@ function POSContent() {
     
     // New Multi-Order State for non-dine-in
     // Format: { 'Takeaway': { 'T-1': [], 'T-2': [] }, 'Delivery': { 'D-1': [] }, ... }
-    const [extraOrders, setExtraOrders] = useState({ 'Takeaway': {}, 'Delivery': {}, 'Corporate': {} });
-    const [activeExtraId, setActiveExtraId] = useState(null); // The specific ID within Takeaway/Delivery/Corporate
+    const [extraOrders, setExtraOrders] = useState({ 'Takeaway': {}, 'Delivery': {}, 'Corporate': {}, 'Party': {} });
+    const [activeExtraId, setActiveExtraId] = useState(null); // The specific ID within Takeaway/Delivery/Corporate/Party
     
     const [tableTimers, setTableTimers] = useState({}); // Tracking start time per table
     const [activeTable, setActiveTable] = useState('Table 1');
@@ -464,7 +465,9 @@ function POSContent() {
     const [paymentType, setPaymentType] = useState('CASH'); // CASH, UPI, PARTIAL
     const [cashPaid, setCashPaid] = useState('');
     const [upiPaid, setUpiPaid] = useState('');
-    const [globalDiscount, setGlobalDiscount] = useState(0);
+    const [globalDiscount, setGlobalDiscount] = useState(0);      // flat ₹ off
+    const [discountPercent, setDiscountPercent] = useState(0);    // % off applied first
+    const [editingPriceId, setEditingPriceId] = useState(null);   // item id whose price is being edited
     const [selectedUpiId, setSelectedUpiId] = useState('');
 
     // System Config States
@@ -486,7 +489,7 @@ function POSContent() {
         printerInterface: "",
         printerApiKey: "",
         // New Fields
-        onboarded: true, // Default to true to prevent flicker before API loads
+        onboarded: false, // Default to false to ensure onboarding shows if needed
         themeId: "wise",
         deliveryEnabled: true,
         pickupEnabled: true,
@@ -505,7 +508,7 @@ function POSContent() {
     const [historyData, setHistoryData] = useState([]);
     const [historyDate, setHistoryDate] = useState(new Date().toISOString().split('T')[0]);
     const [historyEndDate, setHistoryEndDate] = useState(new Date().toISOString().split('T')[0]);
-    const [isRangeFilter, setIsRangeFilter] = useState(false);
+    const isRangeFilter = true; // Enforced range-only mode
     const [reprintOrder, setReprintOrder] = useState(null);
 
     // ── UI SCALING ENGINE ────────────────────────────────────────────────────
@@ -597,6 +600,21 @@ function POSContent() {
     useEffect(() => {
         localStorage.setItem('order_no', orderNo.toString());
     }, [orderNo]);
+    // Monitor service status — reset to DineIn if current channel is disabled
+    useEffect(() => {
+        const checkMode = () => {
+            if (menuMode === 'Takeaway' && !storeConfig.pickupEnabled) return 'DineIn';
+            if (menuMode === 'Corporate' && !storeConfig.corporateEnabled) return 'DineIn';
+            if (menuMode === 'Delivery' && !storeConfig.deliveryEnabled) return 'DineIn';
+            if (menuMode === 'Party' && !storeConfig.partyEnabled) return 'DineIn';
+            return menuMode;
+        };
+        const nextMode = checkMode();
+        if (nextMode !== menuMode) {
+            setMenuMode(nextMode);
+            setActiveTable('Table 1');
+        }
+    }, [storeConfig.pickupEnabled, storeConfig.corporateEnabled, storeConfig.deliveryEnabled, storeConfig.partyEnabled, menuMode]);
 
     // 3. Theme Sync — applies all CSS variables from the selected preset
     //    Also persists themeId to localStorage so the lock screen pre-boots
@@ -620,7 +638,11 @@ function POSContent() {
                 // Also set default UPI if not set
                 if (!selectedUpiId && data.defaultUpiId) setSelectedUpiId(data.defaultUpiId);
             }
-        }).catch(e => console.error(e));
+            setIsConfigLoaded(true);
+        }).catch(e => {
+            console.error(e);
+            setIsConfigLoaded(true); // Don't block UI forever if API fails
+        });
 
         fetchMenu();
         fetchHistory();
@@ -677,9 +699,7 @@ function POSContent() {
 
     const fetchHistory = async () => {
         try {
-            const url = isRangeFilter 
-                ? `/api/orders?startDate=${historyDate}&endDate=${historyEndDate}`
-                : `/api/orders?date=${historyDate}`;
+            const url = `/api/orders?startDate=${historyDate}&endDate=${historyEndDate}`;
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
@@ -861,7 +881,7 @@ function POSContent() {
             });
             setActiveExtraId(null);
         }
-        setCustomerName(''); setCustomerPhone(''); setDeliveryAddress(''); setGlobalDiscount(0); setSelectedUpiId('');
+        setCustomerName(''); setCustomerPhone(''); setDeliveryAddress(''); setGlobalDiscount(0); setDiscountPercent(0); setSelectedUpiId('');
         setPackagingCharge(0); setCheckoutCash(''); setCheckoutUpi('');
     };
 
@@ -878,13 +898,25 @@ function POSContent() {
             removeItem(id);
             return;
         }
-        setTables(prev => {
-            const next = { ...prev };
-            next[activeTable] = (next[activeTable] || []).map(i =>
-                i.id === id ? { ...i, [field]: value } : i
-            );
-            return next;
-        });
+        if (menuMode === 'DineIn') {
+            setTables(prev => {
+                const next = { ...prev };
+                next[activeTable] = (next[activeTable] || []).map(i =>
+                    i.id === id ? { ...i, [field]: value } : i
+                );
+                return next;
+            });
+        } else {
+            setExtraOrders(prev => {
+                const next = { ...prev };
+                const modeOrders = { ...next[menuMode] };
+                modeOrders[activeExtraId] = (modeOrders[activeExtraId] || []).map(i =>
+                    i.id === id ? { ...i, [field]: value } : i
+                );
+                next[menuMode] = modeOrders;
+                return next;
+            });
+        }
     };
 
     // Calculate details for active view
@@ -894,7 +926,10 @@ function POSContent() {
         
     const subtotal = currentItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const taxTotal = currentItems.reduce((sum, item) => sum + ((item.price * item.qty) * (item.taxRate / 100)), 0);
-    const grandTotal = subtotal + taxTotal - (parseFloat(globalDiscount) || 0) + (parseFloat(packagingCharge) || 0);
+    // Apply % discount first, then flat ₹ discount
+    const afterPercent = (subtotal + taxTotal) * (1 - (parseFloat(discountPercent) || 0) / 100);
+    const grandTotal = Math.max(0, afterPercent - (parseFloat(globalDiscount) || 0) + (parseFloat(packagingCharge) || 0));
+    const totalDiscount = (subtotal + taxTotal) - afterPercent + (parseFloat(globalDiscount) || 0);
 
     // Opens the dedicated checkout sheet instead of the raw confirm dialog
     const openCheckout = () => {
@@ -1110,10 +1145,10 @@ function POSContent() {
 
     if (!authMatched) {
         return (
-            <div style={{ display: 'flex', width: '100vw', height: '100vh', justifyContent: 'center', alignItems: 'center', background: 'var(--bg)', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', width: '100vw', height: '100vh', justifyContent: 'center', alignItems: 'center', background: 'var(--bg)', padding: '1.5rem', fontFamily: "'Plus Jakarta Sans', -apple-system, system-ui, sans-serif" }}>
                 <form onSubmit={handleAuth} style={{ background: 'var(--bg)', padding: '5rem 3rem', borderRadius: '40px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-ring)', textAlign: 'center', maxWidth: '460px', width: '100%' }}>
                     <Lock size={56} color="var(--text-primary)" style={{ marginBottom: '2.5rem' }} />
-                    <h1 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)', fontSize: '3rem', fontWeight: '900', letterSpacing: '-2.5px', lineHeight: '0.85' }}>Mom's Fresh Pot</h1>
+                    <h1 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)', fontSize: '3rem', fontWeight: '900', letterSpacing: '-2.5px', lineHeight: '0.85', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Mom's Fresh Pot</h1>
                     <p style={{ marginBottom: '3.5rem', color: 'var(--text-muted)', fontSize: '1.25rem', fontWeight: '600' }}>Unified POS Platform</p>
 
                     <div style={{ position: 'relative', marginBottom: '3rem' }}>
@@ -1138,15 +1173,31 @@ function POSContent() {
         );
     }
 
+
     // Dynamic Theme Calibrator — resolves active preset
     const activeTheme = THEMES.find(t => t.id === (storeConfig.themeId || 'wise')) || THEMES[0];
     const themeVars = activeTheme.vars;
 
+
+    // ── LOADING GATE ─────────────────────────────────────────────────────────
+    if (authMatched && !isConfigLoaded) {
+        return (
+            <div style={{ display: 'flex', width: '100vw', height: '100vh', justifyContent: 'center', alignItems: 'center', background: 'var(--bg)', color: 'var(--text-primary)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ width: '40px', height: '40px', border: '4px solid var(--border)', borderTop: '4px solid var(--primary)', borderRadius: '50%', margin: '0 auto 1.5rem', animation: 'spin 1s linear infinite' }}></div>
+                    <p style={{ fontWeight: '800', fontSize: '1.25rem', letterSpacing: '-0.5px' }}>Calibrating POS Terminal...</p>
+                    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                </div>
+            </div>
+        );
+    }
+
     return (
+
         <div className={styles.appContainer} style={{
             background: 'var(--bg)', color: 'var(--text-primary)', minHeight: '100vh', padding: '0.75rem',
             ...Object.fromEntries(Object.entries(themeVars)),
-            fontFamily: storeConfig.fontFamily || activeTheme.font || 'Inter'
+            fontFamily: activeTheme.font || 'Plus Jakarta Sans, Inter, sans-serif'
         }}>
             <div className={styles.controlsSection} style={{ display: activePrint ? 'none' : 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -1210,7 +1261,7 @@ function POSContent() {
                             style={{
                                 padding: '0.65rem 1rem', borderRadius: '9999px', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '800',
                                 display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                background: 'var(--surface)', color: 'var(--error)',
+                                background: 'var(--surface)', color: 'var(--text-primary)',
                                 transition: 'all 0.2s'
                             }}
                         >
@@ -1223,7 +1274,7 @@ function POSContent() {
 
                 {activeTab === 'MENU' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        <h1 style={{ fontSize: '3rem', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-2.5px', lineHeight: '0.85' }}>Menu Catalog</h1>
+                        <h1 style={{ fontSize: '2.25rem', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-1.5px', lineHeight: '1.1' }}>Menu Catalog</h1>
 
                         <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
                             <div style={{ position: 'relative', flex: 1 }}>
@@ -1330,15 +1381,191 @@ function POSContent() {
 
                 {activeTab === 'SETTINGS' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingBottom: '2rem' }}>
-                        <h1 style={{ fontSize: '3rem', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-2.5px', lineHeight: '0.85' }}>Store Environment</h1>
+                        <h1 style={{ fontSize: '2.25rem', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-1.5px', lineHeight: '1.1' }}>Store Environment</h1>
 
-                        {/* ── THEME STUDIO ───────────────────────────────────────── */}
+
+                        <form onSubmit={saveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                            <div style={{ background: 'var(--bg)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)', boxShadow: 'var(--shadow-ring)' }}>
+                                <h3 style={{ marginBottom: '1rem', fontWeight: '800', fontSize: '1.25rem' }}>Store Profile</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Restaurant Name</label>
+                                        <input className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} required value={storeConfig.name} onChange={e => setStoreConfig({ ...storeConfig, name: e.target.value })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Address (80mm Printer Format)</label>
+                                        <input className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.address} onChange={e => setStoreConfig({ ...storeConfig, address: e.target.value })} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ background: 'var(--bg)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)', boxShadow: 'var(--shadow-ring)' }}>
+                                <h3 style={{ marginBottom: '1rem', fontWeight: '800', fontSize: '1.25rem' }}>Hardware & Printer Setup</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Interface Density</label>
+                                        <div style={{ display: 'flex', background: 'var(--bg-subtle)', padding: '4px', borderRadius: '12px', gap: '4px' }}>
+                                            {['small', 'medium', 'large'].map(size => (
+                                                <button key={size} type="button" onClick={() => setStoreConfig({ ...storeConfig, uiTextSize: size })}
+                                                    style={{ 
+                                                        flex: 1, padding: '0.65rem', borderRadius: '8px', border: 'none', fontSize: '0.7rem', fontWeight: '900', textTransform: 'uppercase', cursor: 'pointer',
+                                                        background: storeConfig.uiTextSize === size ? 'var(--primary)' : 'var(--surface)',
+                                                        color: storeConfig.uiTextSize === size ? 'var(--primary-text)' : 'var(--text-primary)',
+                                                        boxShadow: storeConfig.uiTextSize === size ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                                                    }}
+                                                >
+                                                    {size}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Active Tables</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-subtle)', borderRadius: '12px', padding: '4px', border: '2px solid var(--border)', height: '50px' }}>
+                                            <button type="button" onClick={() => setStoreConfig({ ...storeConfig, tableCount: Math.max(1, (storeConfig.tableCount || 1) - 1) })} style={{ background: 'var(--surface)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Minus size={14} /></button>
+                                            <input type="number" style={{ border: 'none', background: 'transparent', flex: 1, textAlign: 'center', fontSize: '1rem', fontWeight: '900', color: 'var(--text-primary)' }} value={storeConfig.tableCount} onChange={e => setStoreConfig({ ...storeConfig, tableCount: parseInt(e.target.value) || 0 })} />
+                                            <button type="button" onClick={() => setStoreConfig({ ...storeConfig, tableCount: (storeConfig.tableCount || 0) + 1 })} style={{ background: 'var(--surface)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Plus size={14} /></button>
+                                        </div>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Tailscale Node IP</label>
+                                        <input className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '600' }} placeholder="100.x.x.x" value={storeConfig.tailscaleIp || ''} onChange={e => setStoreConfig({ ...storeConfig, tailscaleIp: e.target.value })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Connection Mode</label>
+                                        <select className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.printerConnectionMode || 'REMOTE'} onChange={e => setStoreConfig({ ...storeConfig, printerConnectionMode: e.target.value })}>
+                                            <option value="REMOTE">Remote Proxy (Cloud/Pi)</option>
+                                            <option value="LOCAL">Direct Local (TCP/Port)</option>
+                                        </select>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Thermal Font</label>
+                                        <select className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.printerFont || 'Inter'} onChange={e => setStoreConfig({ ...storeConfig, printerFont: e.target.value })}>
+                                            <option value="Inter">Modern Bold</option>
+                                            <option value="Classic">Classic Mono</option>
+                                            <option value="Elegant">Serif Mono</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>{storeConfig.printerConnectionMode === 'LOCAL' ? 'Local Interface IP/Path' : 'Remote Server URL'}</label>
+                                        <input className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '600' }} placeholder={storeConfig.printerConnectionMode === 'LOCAL' ? 'tcp://192.168.1.100' : 'http://cloud-pos.local'} value={storeConfig.printerInterface || ''} onChange={e => setStoreConfig({ ...storeConfig, printerInterface: e.target.value })} />
+                                    </div>
+                                    {storeConfig.printerConnectionMode !== 'LOCAL' && (
+                                        <div className={styles.formGroup}>
+                                            <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Print Server API Key</label>
+                                            <input className={styles.input} type="password" style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '600' }} value={storeConfig.printerApiKey || ''} onChange={e => setStoreConfig({ ...storeConfig, printerApiKey: e.target.value })} />
+                                        </div>
+                                    )}
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Printer Engine</label>
+                                        <select className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.printerType} onChange={e => setStoreConfig({ ...storeConfig, printerType: e.target.value })}>
+                                            <option value="EPSON">ESC/POS (Epson)</option>
+                                            <option value="STAR">STAR (Star Mode)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Headline Scaling (pt)</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-subtle)', borderRadius: '12px', padding: '4px', border: '2px solid var(--border)', height: '50px' }}>
+                                            <button type="button" onClick={() => setStoreConfig({ ...storeConfig, printerBoldSize: Math.max(8, (storeConfig.printerBoldSize || 24) - 2) })} style={{ background: 'var(--surface)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={14} /></button>
+                                            <input type="number" style={{ border: 'none', background: 'transparent', flex: 1, textAlign: 'center', fontSize: '1rem', fontWeight: '900', color: 'var(--text-primary)' }} value={storeConfig.printerBoldSize} onChange={e => setStoreConfig({ ...storeConfig, printerBoldSize: parseInt(e.target.value) || 24 })} />
+                                            <button type="button" onClick={() => setStoreConfig({ ...storeConfig, printerBoldSize: (storeConfig.printerBoldSize || 0) + 2 })} style={{ background: 'var(--surface)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={14} /></button>
+                                        </div>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Calibration Test</label>
+                                        <button type="button" onClick={() => handlePrint('TEST')} style={{ height: '50px', width: '100%', borderRadius: '9999px', border: '2px solid var(--primary)', background: 'var(--surface)', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                            <Printer size={16} /> RUN TEST PRINT
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ background: 'var(--bg-subtle)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)' }}>
+                                <h3 style={{ marginBottom: '1.5rem', fontWeight: '800', fontSize: '1.25rem' }}>Payment Channels</h3>
+                                {(storeConfig.upiIds || []).map((upi, i) => (
+                                    <div key={i} style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem', alignItems: 'center' }}>
+                                        <input className={styles.input} style={{ flex: 1, height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--surface)', color: 'var(--text-primary)', fontWeight: '800' }} value={upi} onChange={e => {
+                                            const u = [...storeConfig.upiIds]; u[i] = e.target.value; setStoreConfig({ ...storeConfig, upiIds: u });
+                                        }} />
+                                        <button type="button" onClick={() => setStoreConfig({ ...storeConfig, defaultUpiId: upi })} style={{ padding: '0.75rem 1.25rem', borderRadius: '9999px', border: 'none', background: storeConfig.defaultUpiId === upi ? 'var(--primary)' : 'var(--surface)', color: storeConfig.defaultUpiId === upi ? 'var(--primary-text)' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800', boxShadow: 'var(--shadow-ring)' }}>Default</button>
+                                        <button type="button" onClick={() => setStoreConfig({ ...storeConfig, upiIds: storeConfig.upiIds.filter((_, idx) => idx !== i) })} style={{ color: 'var(--error)', border: 'none', background: 'none', cursor: 'pointer' }}><Trash2 size={20} /></button>
+                                    </div>
+                                ))}
+                                <button type="button" onClick={() => setStoreConfig({ ...storeConfig, upiIds: [...(storeConfig.upiIds || []), ""] })} style={{ fontSize: '0.8rem', padding: '0.75rem 1.5rem', borderRadius: '9999px', background: 'var(--surface)', border: '2px solid var(--border)', color: 'var(--text-primary)', fontWeight: '800', cursor: 'pointer' }}>+ Link Account</button>
+                            </div>
+
+                            <div style={{ background: 'var(--bg)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)', boxShadow: 'var(--shadow-ring)' }}>
+                                <h3 style={{ marginBottom: '1rem', fontWeight: '800', fontSize: '1.25rem' }}>Core Operations</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                                    {[
+                                        { key: 'deliveryEnabled', label: 'Delivery Service' },
+                                        { key: 'pickupEnabled', label: 'Takeaway/Pickup' },
+                                        { key: 'corporateEnabled', label: 'Corporate B2B' },
+                                        { key: 'partyEnabled', label: 'Birthday/Party' }
+                                    ].map(service => (
+                                        <div key={service.key} 
+                                            onClick={() => setStoreConfig({ ...storeConfig, [service.key]: !storeConfig[service.key] })}
+                                            style={{ 
+                                                padding: '1.25rem', borderRadius: '24px', cursor: 'pointer',
+                                                background: storeConfig[service.key] ? 'var(--primary)' : 'var(--bg-subtle)',
+                                                color: storeConfig[service.key] ? 'var(--primary-text)' : 'var(--text-primary)',
+                                                border: '2px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.5rem',
+                                                transition: 'all 0.2s',
+                                                boxShadow: storeConfig[service.key] ? '0 8px 20px rgba(var(--primary-rgb, 0,0,0), 0.2)' : 'none'
+                                            }}
+                                        >
+                                            <span style={{ fontSize: '0.7rem', fontWeight: '900', textTransform: 'uppercase' }}>{service.label}</span>
+                                            <span style={{ fontSize: '1.1rem', fontWeight: '900' }}>{storeConfig[service.key] ? 'ENABLED' : 'DISABLED'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1.5rem' }}>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Packaging Charge (₹)</label>
+                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.packagingCharge} onChange={e => setStoreConfig({ ...storeConfig, packagingCharge: parseFloat(e.target.value) || 0 })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Delivery Charge (₹)</label>
+                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.deliveryCharge} onChange={e => setStoreConfig({ ...storeConfig, deliveryCharge: parseFloat(e.target.value) || 0 })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Min Amount (₹)</label>
+                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.minDeliveryAmount} onChange={e => setStoreConfig({ ...storeConfig, minDeliveryAmount: parseFloat(e.target.value) || 0 })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Free Delivery Above (₹)</label>
+                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.freeDeliveryAbove || 0} onChange={e => setStoreConfig({ ...storeConfig, freeDeliveryAbove: parseFloat(e.target.value) || 0 })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Max Distance (KM)</label>
+                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.maxDeliveryDistance || 0} onChange={e => setStoreConfig({ ...storeConfig, maxDeliveryDistance: parseFloat(e.target.value) || 0 })} />
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <button type="submit" style={{ padding: '1.5rem', width: '100%', borderRadius: '9999px', background: 'var(--primary)', color: 'var(--primary-text)', fontSize: '1.1rem', fontWeight: '900', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Sync Configuration Environment</button>
+                        </form>
+
+                        <div style={{ background: 'var(--bg-subtle)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)' }}>
+                            <h3 style={{ marginBottom: '1rem', fontWeight: '900', fontSize: '1.5rem', letterSpacing: '-1px' }}>Manifest Import</h3>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', background: 'var(--primary)', color: 'var(--primary-text)', padding: '1rem 2rem', borderRadius: '9999px', fontWeight: '800', width: 'fit-content' }}>
+                                <Upload size={20} /> Select CSV Source
+                                <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileUpload} />
+                            </label>
+                        </div>
+
+                        {/* ── THEME STUDIO (MOVED TO BOTTOM) ───────────────────────── */}
                         <div style={{ background: 'var(--bg-subtle)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)' }}>
                             <div style={{ marginBottom: '1.5rem' }}>
                                 <h3 style={{ fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Interface Theme</h3>
                                 <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Choose a look & feel — applied instantly</p>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
                                 {THEMES.map(theme => {
                                     const isActive = (storeConfig.themeId || 'wise') === theme.id;
                                     // Use the card's OWN theme colors — never inherit from active theme
@@ -1397,178 +1624,6 @@ function POSContent() {
                                 })}
                             </div>
                         </div>
-
-                        <form onSubmit={saveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                            <div style={{ background: 'var(--bg)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)', boxShadow: 'var(--shadow-ring)' }}>
-                                <h3 style={{ marginBottom: '1rem', fontWeight: '800', fontSize: '1.25rem' }}>Store Profile</h3>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Restaurant Name</label>
-                                        <input className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} required value={storeConfig.name} onChange={e => setStoreConfig({ ...storeConfig, name: e.target.value })} />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Address (80mm Printer Format)</label>
-                                        <input className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.address} onChange={e => setStoreConfig({ ...storeConfig, address: e.target.value })} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style={{ background: 'var(--bg-subtle)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)' }}>
-                                <h3 style={{ marginBottom: '1.5rem', fontWeight: '800', fontSize: '1.25rem' }}>Payment Channels</h3>
-                                {(storeConfig.upiIds || []).map((upi, i) => (
-                                    <div key={i} style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem', alignItems: 'center' }}>
-                                        <input className={styles.input} style={{ flex: 1, height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--surface)', color: 'var(--text-primary)', fontWeight: '800' }} value={upi} onChange={e => {
-                                            const u = [...storeConfig.upiIds]; u[i] = e.target.value; setStoreConfig({ ...storeConfig, upiIds: u });
-                                        }} />
-                                        <button type="button" onClick={() => setStoreConfig({ ...storeConfig, defaultUpiId: upi })} style={{ padding: '0.75rem 1.25rem', borderRadius: '9999px', border: 'none', background: storeConfig.defaultUpiId === upi ? 'var(--primary)' : 'var(--surface)', color: storeConfig.defaultUpiId === upi ? 'var(--primary-text)' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800', boxShadow: 'var(--shadow-ring)' }}>Default</button>
-                                        <button type="button" onClick={() => setStoreConfig({ ...storeConfig, upiIds: storeConfig.upiIds.filter((_, idx) => idx !== i) })} style={{ color: 'var(--error)', border: 'none', background: 'none', cursor: 'pointer' }}><Trash2 size={20} /></button>
-                                    </div>
-                                ))}
-                                <button type="button" onClick={() => setStoreConfig({ ...storeConfig, upiIds: [...(storeConfig.upiIds || []), ""] })} style={{ fontSize: '0.8rem', padding: '0.75rem 1.5rem', borderRadius: '9999px', background: 'var(--surface)', border: '2px solid var(--border)', color: 'var(--text-primary)', fontWeight: '800', cursor: 'pointer' }}>+ Link Account</button>
-                            </div>
-
-                            <div style={{ background: 'var(--bg)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)', boxShadow: 'var(--shadow-ring)' }}>
-                                <h3 style={{ marginBottom: '1rem', fontWeight: '800', fontSize: '1.25rem' }}>Core Operations</h3>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-                                    {[
-                                        { key: 'deliveryEnabled', label: 'Delivery Service' },
-                                        { key: 'pickupEnabled', label: 'Takeaway/Pickup' },
-                                        { key: 'corporateEnabled', label: 'Corporate B2B' },
-                                        { key: 'partyEnabled', label: 'Birthday/Party' }
-                                    ].map(service => (
-                                        <div key={service.key} 
-                                            onClick={() => setStoreConfig({ ...storeConfig, [service.key]: !storeConfig[service.key] })}
-                                            style={{ 
-                                                padding: '1.25rem', borderRadius: '24px', cursor: 'pointer',
-                                                background: storeConfig[service.key] ? 'var(--primary)' : 'var(--bg-subtle)',
-                                                color: storeConfig[service.key] ? 'var(--primary-text)' : 'var(--text-primary)',
-                                                border: '2px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.5rem',
-                                                transition: 'all 0.2s'
-                                            }}
-                                        >
-                                            <span style={{ fontSize: '0.7rem', fontWeight: '900', textTransform: 'uppercase' }}>{service.label}</span>
-                                            <span style={{ fontSize: '1.1rem', fontWeight: '900' }}>{storeConfig[service.key] ? 'ENABLED' : 'DISABLED'}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1.5rem' }}>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Packaging Charge (₹)</label>
-                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.packagingCharge} onChange={e => setStoreConfig({ ...storeConfig, packagingCharge: parseFloat(e.target.value) || 0 })} />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Delivery Charge (₹)</label>
-                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.deliveryCharge} onChange={e => setStoreConfig({ ...storeConfig, deliveryCharge: parseFloat(e.target.value) || 0 })} />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Min Amount (₹)</label>
-                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.minDeliveryAmount} onChange={e => setStoreConfig({ ...storeConfig, minDeliveryAmount: parseFloat(e.target.value) || 0 })} />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Free Delivery Above (₹)</label>
-                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.freeDeliveryAbove || 0} onChange={e => setStoreConfig({ ...storeConfig, freeDeliveryAbove: parseFloat(e.target.value) || 0 })} />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Max Distance (KM)</label>
-                                        <input type="number" className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.maxDeliveryDistance || 0} onChange={e => setStoreConfig({ ...storeConfig, maxDeliveryDistance: parseFloat(e.target.value) || 0 })} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style={{ background: 'var(--bg)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)', boxShadow: 'var(--shadow-ring)' }}>
-                                <h3 style={{ marginBottom: '1rem', fontWeight: '800', fontSize: '1.25rem' }}>User Interface & Hardware</h3>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Interface Density</label>
-                                        <div style={{ display: 'flex', background: 'var(--bg-subtle)', padding: '4px', borderRadius: '12px', gap: '4px' }}>
-                                            {['small', 'medium', 'large'].map(size => (
-                                                <button key={size} type="button" onClick={() => setStoreConfig({ ...storeConfig, uiTextSize: size })}
-                                                    style={{ 
-                                                        flex: 1, padding: '0.65rem', borderRadius: '8px', border: 'none', fontSize: '0.7rem', fontWeight: '900', textTransform: 'uppercase', cursor: 'pointer',
-                                                        background: storeConfig.uiTextSize === size ? 'var(--primary)' : 'var(--surface)',
-                                                        color: storeConfig.uiTextSize === size ? 'var(--primary-text)' : 'var(--text-primary)',
-                                                        boxShadow: storeConfig.uiTextSize === size ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
-                                                    }}
-                                                >
-                                                    {size}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Active Tables</label>
-                                        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-subtle)', borderRadius: '12px', padding: '4px', border: '2px solid var(--border)', height: '50px' }}>
-                                            <button type="button" onClick={() => setStoreConfig({ ...storeConfig, tableCount: Math.max(1, (storeConfig.tableCount || 1) - 1) })} style={{ background: 'var(--surface)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Minus size={14} /></button>
-                                            <input type="number" style={{ border: 'none', background: 'transparent', flex: 1, textAlign: 'center', fontSize: '1rem', fontWeight: '900', color: 'var(--text-primary)' }} value={storeConfig.tableCount} onChange={e => setStoreConfig({ ...storeConfig, tableCount: parseInt(e.target.value) || 0 })} />
-                                            <button type="button" onClick={() => setStoreConfig({ ...storeConfig, tableCount: (storeConfig.tableCount || 0) + 1 })} style={{ background: 'var(--surface)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Plus size={14} /></button>
-                                        </div>
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Tailscale Node IP</label>
-                                        <input className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '600' }} placeholder="100.x.x.x" value={storeConfig.tailscaleIp || ''} onChange={e => setStoreConfig({ ...storeConfig, tailscaleIp: e.target.value })} />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Thermal Font</label>
-                                        <select className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.printerFont || 'Inter'} onChange={e => setStoreConfig({ ...storeConfig, printerFont: e.target.value })}>
-                                            <option value="Inter">Modern Bold</option>
-                                            <option value="Classic">Classic Mono</option>
-                                            <option value="Elegant">Serif Mono</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Thermal Interface</label>
-                                        <input className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '600' }} placeholder="tcp://..." value={storeConfig.printerInterface || ''} onChange={e => setStoreConfig({ ...storeConfig, printerInterface: e.target.value })} />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Print Server API Key</label>
-                                        <input className={styles.input} type="password" style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '600' }} value={storeConfig.printerApiKey || ''} onChange={e => setStoreConfig({ ...storeConfig, printerApiKey: e.target.value })} />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Printer Engine</label>
-                                        <select className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.printerType} onChange={e => setStoreConfig({ ...storeConfig, printerType: e.target.value })}>
-                                            <option value="EPSON">ESC/POS (Epson)</option>
-                                            <option value="STAR">STAR (Star Mode)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Thermal Font Weight</label>
-                                        <select className={styles.input} style={{ height: '50px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '800' }} value={storeConfig.printerFont || 'Inter'} onChange={e => setStoreConfig({ ...storeConfig, printerFont: e.target.value })}>
-                                            <option value="Inter">Standard Bold</option>
-                                            <option value="Classic">Classic Mono</option>
-                                            <option value="Elegant">Elegant Serif</option>
-                                        </select>
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Headline Scaling (pt)</label>
-                                        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-subtle)', borderRadius: '12px', padding: '4px', border: '2px solid var(--border)', height: '50px' }}>
-                                            <button type="button" onClick={() => setStoreConfig({ ...storeConfig, printerBoldSize: Math.max(8, (storeConfig.printerBoldSize || 24) - 2) })} style={{ background: 'var(--surface)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer' }}><Minus size={14} /></button>
-                                            <input type="number" style={{ border: 'none', background: 'transparent', flex: 1, textAlign: 'center', fontSize: '1rem', fontWeight: '900', color: 'var(--text-primary)' }} value={storeConfig.printerBoldSize} onChange={e => setStoreConfig({ ...storeConfig, printerBoldSize: parseInt(e.target.value) || 24 })} />
-                                            <button type="button" onClick={() => setStoreConfig({ ...storeConfig, printerBoldSize: (storeConfig.printerBoldSize || 0) + 2 })} style={{ background: 'var(--surface)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer' }}><Plus size={14} /></button>
-                                        </div>
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Calibration Test</label>
-                                        <button type="button" onClick={() => handlePrint('TEST')} style={{ height: '50px', width: '100%', borderRadius: '9999px', border: '2px solid var(--primary)', background: 'var(--surface)', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                            <Printer size={16} /> RUN TEST PRINT
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="submit" style={{ padding: '1.5rem', width: '100%', borderRadius: '9999px', background: 'var(--primary)', color: 'var(--primary-text)', fontSize: '1.1rem', fontWeight: '900', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Sync Configuration Environment</button>
-                        </form>
-
-                        <div style={{ background: 'var(--bg-subtle)', padding: '2rem', borderRadius: '40px', border: '2px solid var(--border)' }}>
-                            <h3 style={{ marginBottom: '1rem', fontWeight: '900', fontSize: '1.5rem', letterSpacing: '-1px' }}>Manifest Import</h3>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', background: 'var(--primary)', color: 'var(--primary-text)', padding: '1rem 2rem', borderRadius: '9999px', fontWeight: '800', width: 'fit-content' }}>
-                                <Upload size={20} /> Select CSV Source
-                                <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileUpload} />
-                            </label>
-                        </div>
                     </div>
                 )}
 
@@ -1598,16 +1653,22 @@ function POSContent() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'var(--bg)', borderRadius: '32px', padding: '1.5rem', border: '1px solid var(--border)', boxShadow: 'var(--shadow-ring)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', background: 'var(--pill-track)', padding: '0.4rem', borderRadius: '9999px' }}>
-                                        {['DineIn', 'Takeaway', 'Corporate', 'Delivery'].map(mode => (
+                                        {[
+                                            'DineIn',
+                                            ...(storeConfig.pickupEnabled ? ['Takeaway'] : []),
+                                            ...(storeConfig.corporateEnabled ? ['Corporate'] : []),
+                                            ...(storeConfig.deliveryEnabled ? ['Delivery'] : []),
+                                            ...(storeConfig.partyEnabled ? ['Party'] : [])
+                                        ].map(mode => (
                                             <button
                                                 key={mode} onClick={() => {
                                                     setMenuMode(mode);
                                                     if (mode === 'DineIn') {
                                                         setActiveTable(activeTable || 'Table 1');
                                                     } else {
-                                                        const existing = Object.keys(extraOrders[mode]);
+                                                        const existing = Object.keys(extraOrders[mode] || {});
                                                         if (existing.length > 0) {
-                                                            if (!activeExtraId || !extraOrders[mode][activeExtraId]) {
+                                                            if (!activeExtraId || !(extraOrders[mode] && extraOrders[mode][activeExtraId])) {
                                                                 setActiveExtraId(existing[0]);
                                                             }
                                                         } else {
@@ -1704,21 +1765,23 @@ function POSContent() {
                                                     <div
                                                         key={item.id} onClick={() => selectMenuItem(item)}
                                                         style={{
-                                                            background: 'var(--bg)', borderRadius: '24px', border: '1px solid var(--border)', padding: '1.25rem', cursor: 'pointer', textAlign: 'center',
-                                                            boxShadow: '0 4px 15px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '160px',
+                                                            background: 'var(--bg)', borderRadius: '24px', border: '1px solid var(--border)', padding: '1rem', cursor: 'pointer', textAlign: 'left',
+                                                            boxShadow: '0 4px 15px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '150px',
                                                             transition: 'all 0.2s', position: 'relative', overflow: 'hidden'
                                                         }}
                                                         className="menu-card"
                                                     >
+                                                        {/* Item name — clamped to 2 lines */}
                                                         <div style={{
-                                                            fontWeight: '800', fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: '1.3', letterSpacing: '-0.3px',
-                                                            display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                                                            marginTop: 'auto', marginBottom: 'auto', padding: '0 0.25rem'
+                                                            fontWeight: '800', fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: '1.35', letterSpacing: '-0.2px',
+                                                            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                            flex: '1 1 auto',
                                                         }}>
-                                                            {item.name}
+                                                            {item.name.replace(/_+$/, '')}
                                                         </div>
-                                                        <div style={{ marginTop: 'auto', padding: '4px 0' }}>
-                                                            <div style={{ fontSize: '0.9rem', fontWeight: '900', color: 'var(--primary-text)', background: 'var(--primary)', borderRadius: '12px', padding: '0.5rem', width: '100%', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>₹{p.toLocaleString()}</div>
+                                                        {/* Price badge pinned to bottom */}
+                                                        <div style={{ flexShrink: 0, marginTop: '0.5rem' }}>
+                                                            <div style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--primary-text)', background: 'var(--primary)', borderRadius: '10px', padding: '0.45rem 0.75rem', display: 'inline-block', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>₹{p.toLocaleString()}</div>
                                                         </div>
                                                     </div>
                                                 )
@@ -1761,7 +1824,32 @@ function POSContent() {
                                             <tr key={item.id || idx} style={{ borderBottom: '1px solid var(--bg-subtle)' }}>
                                                 <td style={{ padding: '0.65rem 1.5rem' }}>
                                                     <div style={{ fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.3px', fontSize: '0.85rem' }}>{item.name}</div>
-                                                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: '700' }}>₹{item.price}</div>
+                                                    {/* Tap price to override it */}
+                                                    {editingPriceId === item.id ? (
+                                                        <input
+                                                            autoFocus
+                                                            type="number"
+                                                            defaultValue={item.price}
+                                                            onBlur={(e) => {
+                                                                const v = parseFloat(e.target.value);
+                                                                if (!isNaN(v) && v >= 0) updateCartItem(item.id, 'price', v);
+                                                                setEditingPriceId(null);
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') e.target.blur();
+                                                                if (e.key === 'Escape') setEditingPriceId(null);
+                                                            }}
+                                                            style={{ width: '70px', fontSize: '0.75rem', fontWeight: '800', border: '1.5px solid var(--primary)', borderRadius: '6px', padding: '2px 6px', background: 'var(--surface)', color: 'var(--text-primary)', outline: 'none' }}
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            onClick={() => setEditingPriceId(item.id)}
+                                                            title="Click to override price"
+                                                            style={{ fontSize: '0.62rem', color: 'var(--primary)', fontWeight: '700', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                                                        >
+                                                            ₹{item.price} <span style={{ fontSize: '0.55rem', opacity: 0.7 }}>✎</span>
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td align="center">
                                                     <div style={{ display: 'flex', alignItems: 'center', background: 'var(--pill-track)', borderRadius: '12px', padding: '4px', width: 'fit-content', margin: '0 auto', gap: '0.25rem', border: '1px solid var(--border)' }}>
@@ -1797,30 +1885,36 @@ function POSContent() {
                                 </table>
                             </div>
 
-                            <div style={{ background: 'var(--bg-subtle)', padding: '1.75rem', borderTop: '2px solid var(--border)', flexShrink: 0 }}>
-                                <div style={{ paddingTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}><span>Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}><span>GST / Taxes</span><span>₹{taxTotal.toLocaleString()}</span></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '800', fontSize: '1.6rem', color: 'var(--text-primary)', marginTop: '0.5rem', letterSpacing: '-0.5px' }}>
-                                        <span>TOTAL PAYABLE</span>
+                            <div style={{ background: 'var(--bg-subtle)', padding: '1.5rem', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+                                <div style={{ paddingTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600' }}><span>Subtotal</span><span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{subtotal.toLocaleString()}</span></div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600' }}><span>GST / Taxes</span><span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{taxTotal.toLocaleString()}</span></div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '800', fontSize: '1.25rem', color: 'var(--text-primary)', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed var(--border)' }}>
+                                        <span>Total Payable</span>
                                         <span>₹{grandTotal.toLocaleString()}</span>
                                     </div>
                                 </div>
                                 
                                 {currentItems.length > 0 && (
                                     <div style={{ marginTop: '1.25rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                        {['DineIn', 'Takeaway', 'Delivery', 'Corporate'].filter(m => m !== menuMode).map(target => (
-                                            <button key={target} onClick={() => migrateOrder(target)} style={{ padding: '0.55rem 1rem', borderRadius: '9999px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-secondary)', fontSize: '0.68rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                                MOVE TO {target.toUpperCase()}
+                                        {[
+                                            'DineIn',
+                                            ...(storeConfig.pickupEnabled ? ['Takeaway'] : []),
+                                            ...(storeConfig.deliveryEnabled ? ['Delivery'] : []),
+                                            ...(storeConfig.corporateEnabled ? ['Corporate'] : []),
+                                            ...(storeConfig.partyEnabled ? ['Party'] : [])
+                                        ].filter(target => target !== menuMode).map(target => (
+                                            <button key={target} onClick={() => migrateOrder(target)} style={{ padding: '0.5rem 1rem', borderRadius: '9999px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                                Move to {target}
                                             </button>
                                         ))}
                                     </div>
                                 )}
 
-                                <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1.5rem' }}>
-                                    <button disabled={isPrinting} onClick={() => handlePrint('KOT')} style={{ flex: 1, cursor: isPrinting ? 'not-allowed' : 'pointer', background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)', padding: '0.9rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '800', letterSpacing: '0.5px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>KOT</button>
-                                    <button disabled={isPrinting} onClick={() => handlePrint('BILL')} style={{ flex: 1, cursor: isPrinting ? 'not-allowed' : 'pointer', background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)', padding: '0.9rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '800', letterSpacing: '0.5px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>PRINT</button>
-                                    <button disabled={isPrinting} onClick={openCheckout} style={{ flex: 2.2, cursor: isPrinting ? 'not-allowed' : 'pointer', background: 'var(--primary)', color: 'var(--primary-text)', border: 'none', padding: '0.9rem', borderRadius: '9999px', fontSize: '1rem', fontWeight: '800', letterSpacing: '-0.2px', boxShadow: '0 8px 24px -6px var(--primary)', transform: 'translateY(-1px)' }}>CHECKOUT →</button>
+                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
+                                    <button disabled={isPrinting} onClick={() => handlePrint('KOT')} style={{ flex: 1, cursor: isPrinting ? 'not-allowed' : 'pointer', background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)', padding: '0.7rem 0', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '700', transition: 'all 0.2s' }}>KOT</button>
+                                    <button disabled={isPrinting} onClick={() => handlePrint('BILL')} style={{ flex: 1, cursor: isPrinting ? 'not-allowed' : 'pointer', background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)', padding: '0.7rem 0', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '700', transition: 'all 0.2s' }}>PRINT</button>
+                                    <button disabled={isPrinting} onClick={openCheckout} style={{ flex: 2, cursor: isPrinting ? 'not-allowed' : 'pointer', background: 'var(--primary)', color: 'var(--primary-text)', border: 'none', padding: '0.7rem 0', borderRadius: '12px', fontSize: '0.9rem', fontWeight: '800', boxShadow: '0 4px 12px var(--shadow-color, rgba(0,0,0,0.1))', transition: 'all 0.2s' }}>Checkout →</button>
                                 </div>
                             </div>
                         </div>
@@ -1829,31 +1923,87 @@ function POSContent() {
 
                 {activeTab === 'HISTORY' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-                        <h1 style={{ fontSize: '3rem', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-2.5px', lineHeight: '0.85' }}>Order Manifests</h1>
+                        <h1 style={{ fontSize: '2.25rem', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-1.5px', lineHeight: '1.1' }}>Order Manifests</h1>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg)', padding: '2rem 2.5rem', borderRadius: '40px', border: '2px solid var(--border)', boxShadow: 'var(--shadow-ring)', gap: '2rem' }}>
-                            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-end', flex: 1 }}>
-                                <div>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.4rem' }}>{isRangeFilter ? 'Start Date' : 'Target Date'}</label>
-                                    <input type="date" value={historyDate} onChange={e => setHistoryDate(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '1.2rem', fontWeight: '900', background: 'var(--bg-subtle)', color: 'var(--text-primary)', padding: '0.5rem 1rem', borderRadius: '12px' }} />
-                                </div>
-                                {isRangeFilter && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'var(--bg)', padding: '2rem 2.5rem', borderRadius: '40px', border: '2px solid var(--border)', boxShadow: 'var(--shadow-ring)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem', marginBottom: '0.5rem' }}>
+                                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
                                     <div>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.4rem' }}>End Date</label>
-                                        <input type="date" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '1.2rem', fontWeight: '900', background: 'var(--bg-subtle)', color: 'var(--text-primary)', padding: '0.5rem 1rem', borderRadius: '12px' }} />
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.4rem' }}>From Date</label>
+                                        <input type="date" value={historyDate} onChange={e => setHistoryDate(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '1.1rem', fontWeight: '900', background: 'var(--bg-subtle)', color: 'var(--text-primary)', padding: '0.6rem 1.25rem', borderRadius: '14px' }} />
                                     </div>
-                                )}
-                                <div style={{ marginBottom: '4px' }}>
-                                    <button onClick={() => setIsRangeFilter(!isRangeFilter)} style={{ padding: '0.6rem 1.2rem', borderRadius: '9999px', border: isRangeFilter ? '2px solid var(--primary)' : '2px solid var(--border)', background: isRangeFilter ? 'var(--primary)' : 'transparent', color: isRangeFilter ? 'var(--primary-text)' : 'var(--text-primary)', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}>
-                                        {isRangeFilter ? 'SWITCH TO SINGLE DAY' : 'USE DATE RANGE'}
+                                    <div style={{ padding: '2rem 0 0 0', color: 'var(--text-muted)' }}><ArrowRight size={20} /></div>
+                                    <div>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.4rem' }}>To Date</label>
+                                        <input type="date" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '1.1rem', fontWeight: '900', background: 'var(--bg-subtle)', color: 'var(--text-primary)', padding: '0.6rem 1.25rem', borderRadius: '14px' }} />
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <button onClick={() => fetchHistory()} style={{ padding: '0.9rem 2rem', borderRadius: '9999px', border: 'none', background: 'var(--secondary)', color: 'var(--primary-text)', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-lg)' }}>
+                                        <RefreshCw size={18} /> REFRESH REPORT
                                     </button>
                                 </div>
                             </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Total Liquidity</span>
-                                <span style={{ fontSize: '2.5rem', color: 'var(--primary)', fontWeight: '900', letterSpacing: '-2px', lineHeight: '0.8' }}>₹{historyData.reduce((acc, order) => acc + order.grandTotal, 0).toLocaleString()}</span>
-                                <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700' }}>Count: {historyData.length} Orders</p>
-                            </div>
+
+                            {/* ── ANALYTICS GRID ───────────────────────────────────── */}
+                            {(() => {
+                                const stats = historyData.reduce((acc, o) => {
+                                    acc.revenue += o.grandTotal;
+                                    acc.cash += (o.paymentType === 'CASH' ? o.grandTotal : 0);
+                                    acc.upi += (o.paymentType === 'UPI' ? o.grandTotal : 0);
+                                    acc.orders += 1;
+                                    if (o.tableNo?.startsWith('Table')) acc.dineIn += 1;
+                                    else acc.others += 1;
+                                    return acc;
+                                }, { revenue: 0, cash: 0, upi: 0, orders: 0, dineIn: 0, others: 0 });
+
+                                const aov = stats.orders ? stats.revenue / stats.orders : 0;
+                                
+                                return (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
+                                        <div style={{ padding: '1.25rem', borderRadius: '24px', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Gross Revenue</span>
+                                            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--text-primary)', marginTop: '0.25rem' }}>₹{stats.revenue.toLocaleString()}</div>
+                                            <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--primary)', marginTop: '0.4rem' }}>{stats.orders} Success Orders</div>
+                                        </div>
+                                        <div style={{ padding: '1.25rem', borderRadius: '24px', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Payment Mix</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.75rem' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: '0.6rem', fontWeight: '800', color: 'var(--text-muted)' }}>CASH (₹{stats.cash.toLocaleString()})</div>
+                                                    <div style={{ height: '6px', background: 'var(--border)', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${stats.revenue ? (stats.cash/stats.revenue)*100 : 0}%`, background: 'var(--success)' }}></div>
+                                                    </div>
+                                                </div>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: '0.6rem', fontWeight: '800', color: 'var(--text-muted)' }}>UPI (₹{stats.upi.toLocaleString()})</div>
+                                                    <div style={{ height: '6px', background: 'var(--border)', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${stats.revenue ? (stats.upi/stats.revenue)*100 : 0}%`, background: 'var(--primary)' }}></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style={{ padding: '1.25rem', borderRadius: '24px', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Avg Ticket (AOV)</span>
+                                            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--text-primary)', marginTop: '0.25rem' }}>₹{aov.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                                            <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', marginTop: '0.4rem' }}>Per Customer Value</div>
+                                        </div>
+                                        <div style={{ padding: '1.25rem', borderRadius: '24px', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Service Load</span>
+                                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                                                <div style={{ background: 'var(--surface)', padding: '0.5rem 0.75rem', borderRadius: '12px', flex: 1, textAlign: 'center' }}>
+                                                    <div style={{ fontSize: '0.9rem', fontWeight: '900' }}>{stats.dineIn}</div>
+                                                    <div style={{ fontSize: '0.55rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>DINEIN</div>
+                                                </div>
+                                                <div style={{ background: 'var(--surface)', padding: '0.5rem 0.75rem', borderRadius: '12px', flex: 1, textAlign: 'center' }}>
+                                                    <div style={{ fontSize: '0.9rem', fontWeight: '900' }}>{stats.others}</div>
+                                                    <div style={{ fontSize: '0.55rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>EXTERN</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <div style={{ overflowY: 'auto', maxHeight: '600px', display: 'flex', flexDirection: 'column', gap: '1rem', paddingRight: '0.5rem' }}>
@@ -1941,7 +2091,7 @@ function POSContent() {
                     <div className={styles.receiptTotals}>
                         <div className={styles.totalsRow}><span>Subtotal:</span><span>₹{printSubtotal.toFixed(2)}</span></div>
                         <div className={styles.totalsRow}><span>Total GST:</span><span>₹{printTaxTotal.toFixed(2)}</span></div>
-                        {globalDiscount > 0 && <div className={styles.totalsRow}><span>Discount:</span><span>-₹{parseFloat(globalDiscount).toFixed(2)}</span></div>}
+                        {totalDiscount > 0 && <div className={styles.totalsRow}><span>Discount{discountPercent > 0 ? ` (${discountPercent}%)` : ''}:</span><span>-₹{totalDiscount.toFixed(2)}</span></div>}
                         <div className={`${styles.totalsRow} ${styles.grandTotal}`}><span>Grand Total:</span><span>₹{printGrandTotal.toFixed(2)}</span></div>
                     </div>
                     <div className={styles.receiptFooter}>
@@ -1992,14 +2142,41 @@ function POSContent() {
                                         </div>
                                     </div>
 
-                                    {/* Discount stepper in modal */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                        <span style={{ color: 'var(--error)', fontWeight: '700', fontSize: '0.85rem' }}>Adjustment</span>
-                                        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-subtle)', borderRadius: '10px', padding: '2px', border: '1px solid var(--border)' }}>
-                                            <button onClick={() => setGlobalDiscount(v => Math.max(0, v - 10))} style={{ border: 'none', background: 'none', padding: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}><Minus size={12} /></button>
-                                            <span style={{ width: '40px', textAlign: 'center', fontWeight: '800', fontSize: '0.85rem' }}>₹{globalDiscount}</span>
-                                            <button onClick={() => setGlobalDiscount(v => v + 10)} style={{ border: 'none', background: 'none', padding: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}><Plus size={12} /></button>
+                                    {/* Dual Discount Controls */}
+                                    <div style={{ marginBottom: '1.5rem', background: 'var(--bg-subtle)', borderRadius: '14px', padding: '1rem', border: '1px solid var(--border)' }}>
+                                        <div style={{ fontSize: '0.65rem', fontWeight: '900', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '0.75rem' }}>Discount</div>
+                                        {/* % Discount */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                                            <span style={{ color: 'var(--error)', fontWeight: '700', fontSize: '0.82rem' }}>% Off</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', borderRadius: '10px', padding: '2px', border: '1px solid var(--border)', gap: '2px' }}>
+                                                <button onClick={() => setDiscountPercent(v => Math.max(0, v - 5))} style={{ border: 'none', background: 'none', padding: '4px 6px', cursor: 'pointer', color: 'var(--text-primary)' }}><Minus size={12} /></button>
+                                                <input
+                                                    type="number" min="0" max="100"
+                                                    value={discountPercent}
+                                                    onChange={e => setDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                                                    style={{ width: '44px', textAlign: 'center', fontWeight: '900', fontSize: '0.85rem', border: 'none', background: 'transparent', color: 'var(--text-primary)', outline: 'none' }}
+                                                />
+                                                <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-muted)', paddingRight: '4px' }}>%</span>
+                                                <button onClick={() => setDiscountPercent(v => Math.min(100, v + 5))} style={{ border: 'none', background: 'none', padding: '4px 6px', cursor: 'pointer', color: 'var(--text-primary)' }}><Plus size={12} /></button>
+                                            </div>
                                         </div>
+                                        {/* ₹ Flat Discount */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ color: 'var(--error)', fontWeight: '700', fontSize: '0.82rem' }}>₹ Off</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', borderRadius: '10px', padding: '2px', border: '1px solid var(--border)', gap: '2px' }}>
+                                                <button onClick={() => setGlobalDiscount(v => Math.max(0, v - 10))} style={{ border: 'none', background: 'none', padding: '4px 6px', cursor: 'pointer', color: 'var(--text-primary)' }}><Minus size={12} /></button>
+                                                <input
+                                                    type="number" min="0"
+                                                    value={globalDiscount}
+                                                    onChange={e => setGlobalDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
+                                                    style={{ width: '44px', textAlign: 'center', fontWeight: '900', fontSize: '0.85rem', border: 'none', background: 'transparent', color: 'var(--text-primary)', outline: 'none' }}
+                                                />
+                                                <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-muted)', paddingRight: '4px' }}>₹</span>
+                                                <button onClick={() => setGlobalDiscount(v => v + 10)} style={{ border: 'none', background: 'none', padding: '4px 6px', cursor: 'pointer', color: 'var(--text-primary)' }}><Plus size={12} /></button>
+                                            </div>
+                                        </div>
+                                        {/* Show effective saving */}
+                                        {totalDiscount > 0 && <div style={{ marginTop: '0.6rem', fontSize: '0.7rem', fontWeight: '800', color: 'var(--error)', textAlign: 'right' }}>Saving ₹{totalDiscount.toFixed(2)}</div>}
                                     </div>
 
                                     <div style={{ borderTop: '2px dashed var(--border)', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

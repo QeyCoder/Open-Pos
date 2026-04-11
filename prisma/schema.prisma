@@ -21,6 +21,7 @@ model StoreConfig {
   printerType     String?  @default("EPSON") // EPSON, STAR
   printerInterface String? @default("tcp://192.168.1.100") // tcp://host, /dev/usb/lp0, etc.
   printerApiKey    String? // Shared secret for Tailscale print server
+  printerConnectionMode String? @default("REMOTE") // REMOTE (Cloud Proxy), LOCAL (Direct)
   tableCount       Int      @default(10)
   printerFont      String?  @default("Inter")
   printerBoldSize  Int?     @default(24)

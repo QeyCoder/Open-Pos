@@ -77,8 +77,125 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Printer not configured' }, { headers, status: 400 });
         }
 
-        // --- OPTION A: Remote Pi Server ---
-        if (store.printerInterface && store.printerInterface.startsWith('http')) {
+        // --- OPTION B: Direct Local Mode ---
+        if (store.printerConnectionMode === 'LOCAL') {
+            const printer = new ThermalPrinter({
+                type: store.printerType === 'STAR' ? PrinterTypes.STAR : PrinterTypes.EPSON,
+                interface: store.printerInterface,
+                characterSet: 'PC852_LATIN2',
+                removeSpecialCharacters: false,
+                lineCharacter: "-",
+                width: 42
+            });
+
+            const isConnected = await printer.isPrinterConnected();
+            if (!isConnected && !store.printerInterface.includes('usb')) {
+                // We keep going for USB as isPrinterConnected() can be flaky on some OS/drivers
+                console.warn(`[PRINTER] Potential connection issue with ${store.printerInterface}`);
+            }
+
+            if (type === 'KOT') {
+                printer.alignCenter();
+                printer.setTextDoubleHeight();
+                printer.println(`KOT ORDER #${orderNo}`);
+                printer.setTextNormal();
+                printer.println(`Table: ${tableNo || 'N/A'}`);
+                printer.println(`Started: ${duration}m ago`);
+                printer.drawLine();
+                items.forEach(i => {
+                    printer.alignLeft();
+                    printer.println(`${i.qty.toString().padEnd(3)} x ${i.name}`);
+                });
+                printer.cut();
+            } else if (type === 'ZOMATO') {
+                printer.alignCenter();
+                printer.setTextDoubleHeight();
+                printer.println(`ZOMATO DELIVERY`);
+                printer.setTextNormal();
+                printer.println(`ORDER ID: ${orderNo || 'AUTO'}`);
+                if (otp) {
+                    printer.invert(true);
+                    printer.println(` OTP: ${otp} `);
+                    printer.invert(false);
+                }
+                printer.drawLine();
+                items.forEach(i => {
+                    printer.alignLeft();
+                    printer.println(`${i.qty.toString().padEnd(3)} x ${i.name.toUpperCase()}`);
+                });
+                printer.drawLine();
+                printer.println(`PACK FOR DELIVERY`);
+                printer.cut();
+            } else {
+                // BILL / TOKEN
+                printer.alignCenter();
+                printer.setTextDoubleHeight();
+                printer.println(store.name);
+                printer.setTextNormal();
+                printer.println(store.address);
+                if (store.phone) printer.println(`Tel: ${store.phone}`);
+                printer.drawLine();
+                
+                printer.alignLeft();
+                printer.println(`Order #${orderNo} | ${tableNo || 'Takeaway'}`);
+                printer.println(`ID: ${billId || 'PENDING'}`);
+                
+                const now = new Date();
+                printer.println(`Date: ${now.toLocaleDateString()}, ${now.toLocaleTimeString()}`);
+                printer.drawLine();
+                
+                printer.tableCustom([
+                    { text: "Item", align: "LEFT", width: 0.5 },
+                    { text: "Qty", align: "CENTER", width: 0.2 },
+                    { text: "Price", align: "RIGHT", width: 0.3 }
+                ]);
+                printer.drawLine();
+                items.forEach(i => {
+                    printer.tableCustom([
+                        { text: i.name.substring(0, 20), align: "LEFT", width: 0.5 },
+                        { text: i.qty.toString(), align: "CENTER", width: 0.2 },
+                        { text: (i.price * i.qty).toFixed(2), align: "RIGHT", width: 0.3 }
+                    ]);
+                });
+                printer.drawLine();
+                
+                printer.alignRight();
+                printer.println(`Subtotal: Rs. ${(subtotal || 0).toFixed(2)}`);
+                printer.println(`Total GST: Rs. ${(taxTotal || 0).toFixed(2)}`);
+                printer.bold(true);
+                printer.println(`Grand Total: Rs. ${(grandTotal || 0).toFixed(2)}`);
+                printer.bold(false);
+                printer.drawLine();
+
+                if (type === 'BILL' && (grandTotal || 0) > 0) {
+                    const finalUpiId = upiId || store.defaultUpiId || "9220763205@paytm"; 
+                    const upiUri = `upi://pay?pa=${finalUpiId}&pn=${store.name}&am=${(grandTotal || 0).toFixed(2)}&cu=INR`;
+                    printer.alignCenter();
+                    printer.println("Scan to Pay");
+                    printer.printQR(upiUri, { cellSize: 6 });
+                    printer.println("\n");
+                }
+
+                printer.alignCenter();
+                printer.println(`Thank you for choosing`);
+                printer.bold(true);
+                printer.println(store.name);
+                printer.bold(false);
+                printer.println(`Please visit again.`);
+                printer.cut();
+            }
+
+            try {
+                await printer.execute();
+                return NextResponse.json({ success: true }, { headers });
+            } catch (err) {
+                console.error("[LOCAL PRINT ERROR]", err);
+                return NextResponse.json({ error: `Local print failed: ${err.message}` }, { headers, status: 500 });
+            }
+        }
+
+        // --- OPTION A: Remote Proxy Server (Default fallback for backward compatibility) ---
+        if (store.printerInterface && (store.printerInterface.startsWith('http') || store.printerConnectionMode === 'REMOTE')) {
             if (store.printerApiKey) {
                 let textContent = "";
                 const LINE_WIDTH = 42; 

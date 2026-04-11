@@ -27,7 +27,8 @@ export async function GET() {
                     minDeliveryAmount: 0,
                     freeDeliveryAbove: 0,
                     maxDeliveryDistance: 0,
-                    uiTextSize: "medium"
+                    uiTextSize: "medium",
+                    printerConnectionMode: "REMOTE"
                 }
             });
         }
@@ -77,7 +78,8 @@ export async function POST(request) {
             freeDeliveryAbove: parseFloat(body.freeDeliveryAbove) || 0,
             maxDeliveryDistance: parseFloat(body.maxDeliveryDistance) || 0,
             tailscaleIp: body.tailscaleIp || "",
-            uiTextSize: body.uiTextSize || "medium"
+            uiTextSize: body.uiTextSize || "medium",
+            printerConnectionMode: body.printerConnectionMode || "REMOTE"
         };
 
         const config = await prisma.storeConfig.upsert({

@@ -101,14 +101,14 @@ h1, h2, h3, h4, h5, h6, p, span, div {
 }
 
 .menu-card:hover {
-  transform: scale(1.05) !important;
+  transform: translateY(-3px) !important;
   border-color: var(--primary) !important;
-  box-shadow: rgba(14, 15, 12, 0.15) 0px 10px 30px -10px !important;
+  box-shadow: rgba(0,0,0,0.14) 0px 12px 28px -8px !important;
   z-index: 10;
 }
 
 .menu-card:active {
-  transform: scale(0.95) !important;
+  transform: scale(0.97) !important;
 }
 
 /* Wise Precise Scrollbar */
@@ -136,11 +136,13 @@ button {
 }
 
 button:hover {
-  transform: scale(1.05);
+  filter: brightness(1.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 button:active {
-  transform: scale(0.95);
+  filter: brightness(0.96);
+  transform: scale(0.98);
 }
 
 .btn-pill {
